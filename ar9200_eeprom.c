@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <cstring>
 #define FILE_SIZE 64*1024
 
 struct B {
@@ -21,32 +22,32 @@ struct B {
   unsigned char TotalBytes[2];
   unsigned char Checksum[2]; 
   unsigned char Version[2];
-  unsigned char OpFlags;
-  unsigned char EepMisc;
+  unsigned char OpFlags[1];
+  unsigned char EepMisc[1];
   unsigned char regDomain[2];
 
   unsigned char regDomainExt[2];
   unsigned char MAC[6];
-  unsigned char rxMask;
-  unsigned char txMask;
+  unsigned char rxMask[1];
+  unsigned char txMask[1];
   unsigned char rfSilent[2];
   unsigned char blutooth[2];
   unsigned char capabilities[2];
   unsigned char CalibrationVersion[4];
 
-  unsigned char deviceType;
-  unsigned char pwdclkind;
-  unsigned char Clk5g;
-  unsigned char divChain;
-  unsigned char rxGainType;
-  unsigned char dacHiPwrMode_5g;
-  unsigned char openLoopPwrCntl;
-  unsigned char dacLpMode;
-  unsigned char txGailType;
-  unsigned char rcChainMask;
-  unsigned char desiredScaleCCK;
-  unsigned char pwrTableOffset;
-  unsigned char fracN5g;
+  unsigned char deviceType[1];
+  unsigned char pwdclkind[1];
+  unsigned char Clk5g[1];
+  unsigned char divChain[1];
+  unsigned char rxGainType[1];
+  unsigned char dacHiPwrMode_5g[1];
+  unsigned char openLoopPwrCntl[1];
+  unsigned char dacLpMode[1];
+  unsigned char txGailType[1];
+  unsigned char rcChainMask[1];
+  unsigned char desiredScaleCCK[1];
+  unsigned char pwrTableOffset[1];
+  unsigned char fracN5g[1];
   unsigned char futureBase[21];
 
   unsigned char TARGETPOWER5GHZ80211nHT20[72];
@@ -63,12 +64,12 @@ struct B {
 };
 
 int currentCounter=4096; 
-void PrintHex (char *type,unsigned  char *c,int len) {
+void PrintHex (char const *type,unsigned char const *c,int len) {
   printf("%x\t%30s \t%i\t",currentCounter,type,len);
 
   for (int i=0 ; i<len; i++ )
     {
-      if (len==1) {
+      if (len==-1) {
 	printf("%2hhx ", c);
       } else {
 	printf("%hhx ", c[i]);
@@ -78,7 +79,17 @@ void PrintHex (char *type,unsigned  char *c,int len) {
   currentCounter=currentCounter+len;
 
 }
-void main() {
+short checksum(unsigned char *packet,int packet_len) {
+  unsigned short int Cxor = 0;
+  for ( int i = 0 ; i < packet_len ; i = i +2 ) {
+  unsigned short int trg;
+// printf("%i (%i) ",Cxor,trg);
+    memcpy(&trg,&packet[i],2);
+    Cxor = Cxor ^ trg; //packet[i];
+ }
+ return Cxor;
+}
+int main() {
 
   unsigned char b[FILE_SIZE];
   struct B buffer;
@@ -86,7 +97,8 @@ void main() {
   int n=0;
 
   f = fopen("art.bin", "rb");
-  n = fread(&buffer, FILE_SIZE, 1, f);
+  n = fread(&b, FILE_SIZE, 1, f);
+  memcpy(&buffer,&b,FILE_SIZE);
   fclose(f);
 
   PrintHex("Magic",buffer.Magic,sizeof(buffer.Magic));
@@ -141,6 +153,17 @@ void main() {
   PrintHex("CTLIndex",buffer.CTLIndex,sizeof(buffer.CTLIndex));
   PrintHex("CTLData",buffer.CTLData,sizeof(buffer.CTLData));
 
+
+  //Possibly BIGEDIAN vs LITTLEDIAN
+  int Length=0;
+  memcpy(&Length,buffer.TotalBytes,2);
+
+  //Start may not be 1900
+  short c=checksum(b+1900,Length);
+
+  unsigned char cc[2];
+  memcpy(&cc,&c,2);
+  PrintHex("checksum test", cc,sizeof(cc));
 
   //   printf("Mask: %x\n",buffer.Mask);
   //  printf("Location: %x\n",buffer.Location);
